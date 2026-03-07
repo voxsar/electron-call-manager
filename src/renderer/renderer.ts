@@ -7,6 +7,14 @@ import { ElevenLabsSession } from './elevenlabs';
 import type { ChatMessage } from './elevenlabs';
 import type { PortInfo, AppSettings, StatsUpdate, CallStatePayload } from '../types/ipc';
 
+interface BtDevice {
+	id: string;
+	name: string;
+	type: string;
+	connected: boolean;
+	address: string | null;
+}
+
 declare global {
 	interface Window {
 		electronAPI: {
@@ -21,6 +29,10 @@ declare global {
 			saveSettings: (settings: Partial<AppSettings>) => Promise<void>;
 			hangup: () => Promise<void>;
 			answer: () => Promise<void>;
+			getBtDevices: () => Promise<{ success: boolean; devices: BtDevice[]; error?: string }>;
+			btConnect: (deviceId: string) => Promise<{ success: boolean; message: string }>;
+			btDisconnect: (deviceId: string) => Promise<{ success: boolean; message: string }>;
+			getDeviceStatus: () => Promise<{ success: boolean; status: { running: boolean; devicesConnected: number; version: string } | null; error?: string }>;
 			onPortList: (cb: (ports: PortInfo[]) => void) => () => void;
 			onPortOpened: (cb: (path: string) => void) => () => void;
 			onPortClosed: (cb: () => void) => () => void;
@@ -473,6 +485,98 @@ document.addEventListener('DOMContentLoaded', async () => {
 			autoSave();
 		});
 	});
+
+	// ── Bluetooth device panel ────────────────────────────────────────────────
+
+	async function refreshBtDevices(): Promise<void> {
+		const list = el('bt-device-list');
+		list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;text-align:center;padding:8px 0">Scanning…</div>';
+		try {
+			const result = await api.getBtDevices();
+			if (!result.success) {
+				list.innerHTML = `<div style="color:var(--red);font-size:11px;text-align:center;padding:8px 0">${result.error || 'Failed to fetch devices'}</div>`;
+				appendLog(`BT scan error: ${result.error}`, 'info');
+				return;
+			}
+			const devices = result.devices as BtDevice[];
+			if (devices.length === 0) {
+				list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;text-align:center;padding:8px 0">No paired devices found</div>';
+				return;
+			}
+			list.innerHTML = '';
+			for (const dev of devices) {
+				const row = document.createElement('div');
+				row.className = 'bt-device-row';
+
+				const icon = document.createElement('span');
+				icon.className = 'bt-device-icon';
+				icon.textContent = dev.type === 'bluetooth' ? '📱' : '🔊';
+
+				const info = document.createElement('div');
+				info.className = 'bt-device-info';
+				const name = document.createElement('div');
+				name.className = 'bt-device-name';
+				name.textContent = dev.name;
+				const addr = document.createElement('div');
+				addr.className = 'bt-device-addr';
+				addr.textContent = dev.address || dev.id;
+				info.appendChild(name);
+				info.appendChild(addr);
+
+				const status = document.createElement('span');
+				status.className = `bt-device-status ${dev.connected ? 'connected' : 'disconnected'}`;
+				status.textContent = dev.connected ? 'Connected' : 'Paired';
+
+				const btn = document.createElement('button');
+				btn.className = `btn btn-sm ${dev.connected ? 'btn-danger' : 'btn-success'}`;
+				btn.textContent = dev.connected ? 'Disconnect' : 'Connect';
+				btn.addEventListener('click', async () => {
+					btn.disabled = true;
+					btn.textContent = '…';
+					try {
+						const res = dev.connected
+							? await api.btDisconnect(dev.id) as { success: boolean; message: string }
+							: await api.btConnect(dev.id) as { success: boolean; message: string };
+						appendLog(`BT ${dev.connected ? 'disconnect' : 'connect'} ${dev.name}: ${res.message}`, 'info');
+					} catch (err: unknown) {
+						appendLog(`BT error: ${err instanceof Error ? err.message : String(err)}`, 'info');
+					}
+					await refreshBtDevices();
+				});
+
+				row.appendChild(icon);
+				row.appendChild(info);
+				row.appendChild(status);
+				row.appendChild(btn);
+				list.appendChild(row);
+			}
+			appendLog(`BT scan: found ${devices.length} device(s)`, 'info');
+		} catch (err: unknown) {
+			list.innerHTML = '<div style="color:var(--red);font-size:11px;text-align:center;padding:8px 0">Service unavailable</div>';
+			appendLog(`BT scan failed: ${err instanceof Error ? err.message : String(err)}`, 'info');
+		}
+	}
+
+	async function checkBtServiceStatus(): Promise<void> {
+		try {
+			const res = await api.getDeviceStatus() as { success: boolean; status: { running: boolean; devicesConnected: number; version: string } | null };
+			if (res.success && res.status?.running) {
+				setStatus('bt-svc', true, `v${res.status.version} (${res.status.devicesConnected} connected)`);
+			} else {
+				setStatus('bt-svc', false, 'offline');
+			}
+		} catch {
+			setStatus('bt-svc', false, 'offline');
+		}
+	}
+
+	el('bt-refresh-btn').addEventListener('click', async () => {
+		await refreshBtDevices();
+		await checkBtServiceStatus();
+	});
+
+	// Initial check of native service status
+	checkBtServiceStatus();
 
 	appendLog('GSM Call Manager ready.', 'info');
 });
