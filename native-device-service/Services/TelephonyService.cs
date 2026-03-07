@@ -133,6 +133,26 @@ public sealed class TelephonyService : ITelephonyService, IDisposable
 			state, callerId ?? "—");
 	}
 
+	private void OnBtHfpCallActiveChanged(bool active)
+	{
+		if (active)
+		{
+			if (_audioDetectedState == CallState.Idle)
+			{
+				_logger.LogInformation("BT HFP audio activated → reporting Ringing");
+				_audioDetectedState = CallState.Ringing;
+			}
+		}
+		else
+		{
+			if (_audioDetectedState != CallState.Idle)
+			{
+				_logger.LogInformation("BT HFP audio deactivated → reporting Idle");
+				_audioDetectedState = CallState.Idle;
+			}
+		}
+	}
+
 	// ── Call control ────────────────────────────────────────────────────────
 
 	public async Task<bool> AnswerCallAsync(string? deviceId)

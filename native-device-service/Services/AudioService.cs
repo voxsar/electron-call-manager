@@ -86,7 +86,7 @@ public sealed class AudioService : IAudioService, IMMNotificationClient, IDispos
 		{
 			foreach (var flow in new[] { DataFlow.Render, DataFlow.Capture })
 			{
-				using var collection = _enumerator.EnumerateAudioEndPoints(flow, DeviceState.Active | DeviceState.Unplugged);
+				var collection = _enumerator.EnumerateAudioEndPoints(flow, DeviceState.Active | DeviceState.Unplugged);
 				foreach (var dev in collection)
 				{
 					try
@@ -157,7 +157,7 @@ public sealed class AudioService : IAudioService, IMMNotificationClient, IDispos
 			{
 				foreach (var flow in new[] { DataFlow.Render, DataFlow.Capture })
 				{
-					using var collection = _enumerator.EnumerateAudioEndPoints(flow, DeviceState.Active);
+					var collection = _enumerator.EnumerateAudioEndPoints(flow, DeviceState.Active);
 					foreach (var dev in collection)
 					{
 						try
