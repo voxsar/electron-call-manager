@@ -235,18 +235,78 @@ ipcMain.handle(INVOKE.SAVE_SETTINGS, async (_evt, newSettings: Partial<AppSettin
 });
 
 ipcMain.handle(INVOKE.HANGUP, async () => {
-	serial.sendATH();
+	// Prefer native service when available; fall back to serial AT commands.
+	const ctrl = deviceManager.activeController;
+	if (ctrl.name === 'NativeDeviceController') {
+		const res = await ctrl.hangupCall();
+		console.log('[main] hangup via native:', res.message);
+	} else {
+		serial.sendATH();
+	}
 	pushCallState('idle');
 });
 
+// ── Bluetooth / Native device IPC ─────────────────────────────────────────────
+
+ipcMain.handle(INVOKE.GET_BT_DEVICES, async () => {
+	try {
+		const ctrl = deviceManager.activeController;
+		const devices = await ctrl.getDevices();
+		return { success: true, devices };
+	} catch (err: unknown) {
+		return { success: false, devices: [], error: err instanceof Error ? err.message : String(err) };
+	}
+});
+
+ipcMain.handle(INVOKE.BT_CONNECT, async (_evt, deviceId: string) => {
+	try {
+		const ctrl = deviceManager.activeController;
+		const res = await ctrl.connect(deviceId);
+		return res;
+	} catch (err: unknown) {
+		return { success: false, message: err instanceof Error ? err.message : String(err) };
+	}
+});
+
+ipcMain.handle(INVOKE.BT_DISCONNECT, async (_evt, deviceId: string) => {
+	try {
+		const ctrl = deviceManager.activeController;
+		const res = await ctrl.disconnect(deviceId);
+		return res;
+	} catch (err: unknown) {
+		return { success: false, message: err instanceof Error ? err.message : String(err) };
+	}
+});
+
+ipcMain.handle(INVOKE.GET_DEVICE_STATUS, async () => {
+	try {
+		const ctrl = deviceManager.activeController;
+		const status = ctrl.getStatus ? await ctrl.getStatus() : null;
+		return { success: true, status };
+	} catch (err: unknown) {
+		return { success: false, status: null, error: err instanceof Error ? err.message : String(err) };
+	}
+});
+
 ipcMain.handle(INVOKE.ANSWER, async () => {
-	serial.sendATA();
+	// Prefer native service when available; fall back to serial AT commands.
+	const ctrl = deviceManager.activeController;
+	if (ctrl.name === 'NativeDeviceController') {
+		const res = await ctrl.answerCall();
+		console.log('[main] answer via native:', res.message);
+	} else {
+		serial.sendATA();
+	}
 	pushCallState('answered');
 });
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+	// Initialise the device manager – probes / spawns the native service.
+	await deviceManager.init();
+	console.log(`[main] Active device controller: ${deviceManager.activeController.name}`);
+
 	createWindow();
 	startStatsTimer();
 
@@ -292,6 +352,7 @@ app.whenReady().then(() => {
 app.on('before-quit', async (evt) => {
 	evt.preventDefault();
 	if (statsTimer) { clearInterval(statsTimer); statsTimer = null; }
+	await deviceManager.shutdown();
 	if (serial.isOpen()) await serial.close().catch(console.error);
 	wsBridge.disconnect();
 	app.exit(0);

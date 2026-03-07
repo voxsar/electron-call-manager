@@ -47,6 +47,10 @@ const electronAPI = {
   saveSettings: (settings: Partial<AppSettings>)      => safeInvoke(INVOKE.SAVE_SETTINGS, settings),
   hangup:       ()                                    => safeInvoke(INVOKE.HANGUP),
   answer:       ()                                    => safeInvoke(INVOKE.ANSWER),
+  getBtDevices: ()                                    => safeInvoke(INVOKE.GET_BT_DEVICES) as Promise<{ success: boolean; devices: unknown[]; error?: string }>,
+  btConnect:    (deviceId: string)                    => safeInvoke(INVOKE.BT_CONNECT, deviceId),
+  btDisconnect: (deviceId: string)                    => safeInvoke(INVOKE.BT_DISCONNECT, deviceId),
+  getDeviceStatus: ()                                 => safeInvoke(INVOKE.GET_DEVICE_STATUS),
 
   // ── Event subscriptions (main → renderer, returns cleanup fn) ─────────
   onPortList:    (cb: (ports: PortInfo[]) => void)           => onChannel<PortInfo[]>(IPC.PORT_LIST, cb),

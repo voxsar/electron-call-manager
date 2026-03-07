@@ -26,6 +26,10 @@ export const INVOKE = {
 	SAVE_SETTINGS: 'invoke:saveSettings',
 	HANGUP: 'invoke:hangup',
 	ANSWER: 'invoke:answer',
+	GET_BT_DEVICES: 'invoke:getBtDevices',
+	BT_CONNECT: 'invoke:btConnect',
+	BT_DISCONNECT: 'invoke:btDisconnect',
+	GET_DEVICE_STATUS: 'invoke:getDeviceStatus',
 } as const;
 
 // ─── Shared types ─────────────────────────────────────────────────────────────

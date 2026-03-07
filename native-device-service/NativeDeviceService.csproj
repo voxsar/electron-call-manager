@@ -19,4 +19,9 @@
     <Description>Native Device Service for Electron Call Manager – handles Bluetooth/audio device interactions</Description>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- 32feet.NET – cross-platform Bluetooth (Windows, Linux, macOS) -->
+    <PackageReference Include="InTheHand.Net.Bluetooth" Version="4.1.46" />
+  </ItemGroup>
+
 </Project>
