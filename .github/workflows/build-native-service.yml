@@ -1,0 +1,97 @@
+name: Build & Release Native Device Service
+
+# Run on every commit to any branch.
+# When the commit is on the default branch (main/master), also create a release.
+on:
+  push:
+    branches:
+      - '**'
+
+permissions:
+  contents: write   # needed to create releases and upload assets
+
+jobs:
+  build-windows:
+    name: Build Windows x64 executable
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        working-directory: native-device-service
+
+    steps:
+      # ── Checkout ────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── .NET setup ──────────────────────────────────────────────────────────
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # ── Restore dependencies ────────────────────────────────────────────────
+      - name: Restore NuGet packages
+        run: dotnet restore NativeDeviceService.csproj
+
+      # ── Build (debug, quick feedback on every commit) ────────────────────────
+      - name: Build (Debug)
+        run: dotnet build NativeDeviceService.csproj --configuration Debug --no-restore
+
+      # ── Publish self-contained single-file exe ───────────────────────────────
+      - name: Publish self-contained Windows exe
+        run: >
+          dotnet publish NativeDeviceService.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:EnableCompressionInSingleFile=true
+          -p:PublishReadyToRun=true
+          --output bin/publish/win-x64
+          --no-restore
+
+      # ── Upload build artifact (available on every commit) ───────────────────
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NativeDeviceService-win-x64
+          path: native-device-service/bin/publish/win-x64/NativeDeviceService.exe
+          if-no-files-found: error
+
+      # ── Create GitHub Release (default branch only) ─────────────────────────
+      - name: Derive release version
+        id: version
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        shell: bash
+        run: |
+          # Use the short commit SHA as the release tag, e.g. v-a1b2c3d
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "tag=native-svc-v${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "name=Native Device Service ${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release with Windows exe
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name:   ${{ steps.version.outputs.tag }}
+          name:       ${{ steps.version.outputs.name }}
+          body: |
+            Automated release of the **Native Device Service** Windows executable.
+
+            Built from commit `${{ github.sha }}` on branch `${{ github.ref_name }}`.
+
+            ### Installation
+            1. Download `NativeDeviceService.exe` below.
+            2. Place it at `<repo>/native-device-service/bin/publish/NativeDeviceService.exe`
+               (or alongside the packaged Electron app in `resources/native-device-service/`).
+            3. Electron will detect and start it automatically on next launch.
+
+            ### Manual run
+            ```
+            NativeDeviceService.exe
+            # Listens on http://localhost:8765
+            ```
+          files: native-device-service/bin/publish/win-x64/NativeDeviceService.exe
+          draft: false
+          prerelease: false
