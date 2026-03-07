@@ -13,3 +13,6 @@ native-device-service/obj/
 # Shared-types – compiled output
 shared-types/dist/
 shared-types/node_modules/
+
+# Electron build output
+release/
