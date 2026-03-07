@@ -5,6 +5,7 @@ import { SerialManager } from './serial';
 import { WsBridge }      from './wsbridge';
 import { IPC, INVOKE }   from '../types/ipc';
 import type { AppSettings, CallState, StatsUpdate, CallStatePayload } from '../types/ipc';
+import { DeviceManager } from './device/DeviceManager';
 
 // ── Persistent settings ──────────────────────────────────────────────────────
 
@@ -46,8 +47,9 @@ function getSettings(): AppSettings {
 // ── Singletons ───────────────────────────────────────────────────────────────
 
 let win: BrowserWindow | null = null;
-const serial   = new SerialManager();
-const wsBridge = new WsBridge();
+const serial        = new SerialManager();
+const wsBridge      = new WsBridge();
+const deviceManager = new DeviceManager(serial);
 
 // ── Call state machine ───────────────────────────────────────────────────────
 
@@ -227,18 +229,33 @@ ipcMain.handle(INVOKE.SAVE_SETTINGS, async (_evt, newSettings: Partial<AppSettin
 });
 
 ipcMain.handle(INVOKE.HANGUP, async () => {
-  serial.sendATH();
+  // Route through the device controller when using the native service.
+  const ctrl = deviceManager.activeController;
+  if (ctrl.name === 'NativeDeviceController') {
+    await ctrl.hangupCall();
+  } else {
+    serial.sendATH();
+  }
   pushCallState('idle');
 });
 
 ipcMain.handle(INVOKE.ANSWER, async () => {
-  serial.sendATA();
+  // Route through the device controller when using the native service.
+  const ctrl = deviceManager.activeController;
+  if (ctrl.name === 'NativeDeviceController') {
+    await ctrl.answerCall();
+  } else {
+    serial.sendATA();
+  }
   pushCallState('answered');
 });
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Initialise device controller (native service or Electron fallback).
+  await deviceManager.init();
+
   createWindow();
   startStatsTimer();
 
@@ -259,6 +276,7 @@ app.on('before-quit', async (evt) => {
   if (statsTimer) { clearInterval(statsTimer); statsTimer = null; }
   if (serial.isOpen()) await serial.close().catch(console.error);
   wsBridge.disconnect();
+  await deviceManager.shutdown().catch(console.error);
   app.exit(0);
 });
 
