@@ -53,8 +53,8 @@ function getSettings(): AppSettings {
 // ── Singletons ───────────────────────────────────────────────────────────────
 
 let win: BrowserWindow | null = null;
-const serial        = new SerialManager();
-const wsBridge      = new WsBridge();
+const serial = new SerialManager();
+const wsBridge = new WsBridge();
 const deviceManager = new DeviceManager(serial);
 
 // ── Call state machine ───────────────────────────────────────────────────────
