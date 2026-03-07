@@ -5,6 +5,7 @@ import { SerialManager } from './serial';
 import { WsBridge } from './wsbridge';
 import { IPC, INVOKE } from '../types/ipc';
 import type { AppSettings, CallState, StatsUpdate, CallStatePayload } from '../types/ipc';
+import { DeviceManager } from './device/DeviceManager';
 
 // ── Persistent settings ──────────────────────────────────────────────────────
 
@@ -52,8 +53,9 @@ function getSettings(): AppSettings {
 // ── Singletons ───────────────────────────────────────────────────────────────
 
 let win: BrowserWindow | null = null;
-const serial = new SerialManager();
-const wsBridge = new WsBridge();
+const serial        = new SerialManager();
+const wsBridge      = new WsBridge();
+const deviceManager = new DeviceManager(serial);
 
 // ── Call state machine ───────────────────────────────────────────────────────
 
