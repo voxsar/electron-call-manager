@@ -23,6 +23,8 @@ export class ElectronDeviceController implements IDeviceController {
 			callState: 'idle',
 			callerId: null,
 			hfpMonitoring: false,
+			btHfpOutputDeviceId: null,
+			btHfpInputDeviceId: null,
 		};
 	}
 

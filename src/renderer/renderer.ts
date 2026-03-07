@@ -120,6 +120,39 @@ async function autoSave(): Promise<void> {
 	await api.saveSettings(settings);
 }
 
+// ── BT HFP device auto-detection ──────────────────────────────────────────
+
+/**
+ * Search for Bluetooth Hands-Free audio devices among the browser's
+ * enumerated media devices. If found, use them for the ElevenLabs session
+ * so the AI voice routes through the phone's BT SCO channel.
+ * Falls back to the provided defaults if no HFP device is found.
+ */
+async function detectBtHfpDevices(
+	fallbackMic: string,
+	fallbackSpk: string,
+): Promise<{ micId: string; spkId: string }> {
+	try {
+		const devices = await navigator.mediaDevices.enumerateDevices();
+		let hfpMic: string | null = null;
+		let hfpSpk: string | null = null;
+
+		for (const d of devices) {
+			const label = (d.label || '').toLowerCase();
+			if (!label.includes('hands-free') && !label.includes('handsfree')) continue;
+			if (d.kind === 'audioinput' && !hfpMic) hfpMic = d.deviceId;
+			if (d.kind === 'audiooutput' && !hfpSpk) hfpSpk = d.deviceId;
+		}
+
+		return {
+			micId: hfpMic ?? fallbackMic,
+			spkId: hfpSpk ?? fallbackSpk,
+		};
+	} catch {
+		return { micId: fallbackMic, spkId: fallbackSpk };
+	}
+}
+
 // ── Audio device enumeration ──────────────────────────────────────────────────
 
 async function enumerateDevices(): Promise<void> {
@@ -252,10 +285,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 						if (elConvo.getStatus() !== 'disconnected') return;
 						try {
 							const s = buildSettings();
-							const convId = await elConvo.start(agentId, s.inputDeviceId, s.outputDeviceId);
+							// Auto-detect BT HFP devices for audio routing
+							const { micId, spkId } = await detectBtHfpDevices(s.inputDeviceId, s.outputDeviceId);
+							const convId = await elConvo.start(agentId, micId, spkId);
 							appendLog(`Auto-agent: conversation started (${convId})`, 'ws');
-							appendLog(`Auto-agent: agent mic=${s.inputDeviceId}, agent spkr=${s.outputDeviceId}, desktop=${s.desktopSpeakerId}`, 'audio');
-							audio.enableMonitor(s.inputDeviceId, s.desktopSpeakerId).catch((err: Error) =>
+							appendLog(`Auto-agent: agent mic=${micId}, agent spkr=${spkId}, desktop=${s.desktopSpeakerId}`, 'audio');
+							audio.enableMonitor(micId, s.desktopSpeakerId).catch((err: Error) =>
 								appendLog(`Monitor error: ${err.message}`, 'audio'));
 							(el<HTMLInputElement>('monitor-audio')).checked = true;
 							appendLog('Auto-agent: mic monitor enabled on desktop speaker', 'audio');
@@ -438,8 +473,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 		if (!agentId) { appendLog('Enter an Agent ID first', 'ws'); return; }
 		try {
 			const currentSettings = buildSettings();
-			const convId = await elConvo.start(agentId, currentSettings.inputDeviceId, currentSettings.outputDeviceId);
+			// Auto-detect BT HFP devices for audio routing
+			const { micId, spkId } = await detectBtHfpDevices(currentSettings.inputDeviceId, currentSettings.outputDeviceId);
+			const convId = await elConvo.start(agentId, micId, spkId);
 			appendLog(`ElevenLabs conversation started: ${convId}`, 'ws');
+			if (micId !== currentSettings.inputDeviceId || spkId !== currentSettings.outputDeviceId) {
+				appendLog(`Using BT HFP devices: mic=${micId}, spkr=${spkId}`, 'audio');
+			}
 			settings.elevenLabsAgentId = agentId;
 			await api.saveSettings({ elevenLabsAgentId: agentId });
 		} catch (err: unknown) {
