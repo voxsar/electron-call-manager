@@ -19,6 +19,10 @@ export interface StatusResponse {
 	callerId: string | null;
 	/** Whether HFP monitoring is active on a connected device. */
 	hfpMonitoring: boolean;
+	/** Windows audio endpoint ID for BT HFP output (speaker), if active. */
+	btHfpOutputDeviceId: string | null;
+	/** Windows audio endpoint ID for BT HFP input (mic), if active. */
+	btHfpInputDeviceId: string | null;
 }
 
 // ── Devices ─────────────────────────────────────────────────────────────────

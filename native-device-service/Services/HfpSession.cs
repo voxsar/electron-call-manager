@@ -22,9 +22,10 @@ public sealed class HfpSession : IDisposable
 	private Task? _readTask;
 	private readonly object _lock = new();
 
-	// ── HFP UUID ────────────────────────────────────────────────────────────
-	private static readonly Guid HfpUuid = new("0000111e-0000-1000-8000-00805f9b34fb");
-	private static readonly Guid SppUuid = new("00001101-0000-1000-8000-00805f9b34fb");
+	// ── HFP UUIDs ──────────────────────────────────────────────────────────────────
+	private static readonly Guid HfpAgUuid = new("0000111f-0000-1000-8000-00805f9b34fb"); // AG role (phone)
+	private static readonly Guid HfpUuid = new("0000111e-0000-1000-8000-00805f9b34fb");  // HF role
+	private static readonly Guid SppUuid = new("00001101-0000-1000-8000-00805f9b34fb");  // SPP fallback
 
 	// ── Observable state ────────────────────────────────────────────────────
 	public bool IsConnected { get; private set; }
@@ -60,8 +61,10 @@ public sealed class HfpSession : IDisposable
 				var address = InTheHand.Net.BluetoothAddress.Parse(deviceAddress);
 
 				_client = new BluetoothClient();
-				// Try HFP first, fall back to SPP.
-				bool connected = TryConnect(address, HfpUuid) || TryConnect(address, SppUuid);
+				// Try AG UUID first (phone's AG role), then HFP unit, then SPP.
+				bool connected = TryConnect(address, HfpAgUuid)
+					|| TryConnect(address, HfpUuid)
+					|| TryConnect(address, SppUuid);
 
 				if (!connected)
 				{
@@ -118,8 +121,8 @@ public sealed class HfpSession : IDisposable
 	{
 		try
 		{
-			// 1. Exchange supported features.
-			SendLine("AT+BRSF=0");
+			// 1. Exchange supported features (37 = EC/NR + CLI + enhanced call status + call control).
+			SendLine("AT+BRSF=37");
 			Thread.Sleep(300);
 			DrainAvailable();
 

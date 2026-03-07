@@ -22,6 +22,8 @@
   <ItemGroup>
     <!-- 32feet.NET – cross-platform Bluetooth (Windows, Linux, macOS) -->
     <PackageReference Include="InTheHand.Net.Bluetooth" Version="4.2.0" />
+    <!-- NAudio – Windows audio device enumeration & endpoint monitoring -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
 </Project>

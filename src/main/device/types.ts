@@ -33,4 +33,6 @@ export interface StatusResponse {
 	callState: 'idle' | 'ringing' | 'answered' | 'ended';
 	callerId: string | null;
 	hfpMonitoring: boolean;
+	btHfpOutputDeviceId: string | null;
+	btHfpInputDeviceId: string | null;
 }

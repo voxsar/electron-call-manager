@@ -459,6 +459,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 	// ── Monitor toggle ──────────────────────────────────────────────────────
 
+	el('swap-audio-btn').addEventListener('click', async () => {
+		const micSel = el<HTMLSelectElement>('mic-select');
+		const spkSel = el<HTMLSelectElement>('speaker-select');
+		const tmp = micSel.value;
+		micSel.value = spkSel.value;
+		spkSel.value = tmp;
+		checkFeedback();
+		await autoSave();
+		appendLog(`Swapped mic ↔ speaker: mic=${micSel.value}, spkr=${spkSel.value}`, 'audio');
+	});
+
 	el('monitor-audio').addEventListener('change', () => {
 		const checked = (el<HTMLInputElement>('monitor-audio')).checked;
 		if (checked) {

@@ -209,11 +209,31 @@ function startBtCallPoller(): void {
 				if (btState === 'ringing') {
 					console.log('[bt-poll] Incoming call detected via BT', btCaller);
 					pushCallState('ringing', btCaller ?? undefined);
+
+					// Auto-answer for BT calls: answer after a short delay.
+					const settings = getSettings();
+					if (settings.autoAnswer && !autoAnswerTimer) {
+						const delayMs = Math.max(settings.answerAfterRings, 1) * 1500;
+						console.log(`[bt-poll] Auto-answer in ${delayMs}ms`);
+						autoAnswerTimer = setTimeout(async () => {
+							autoAnswerTimer = null;
+							if (callState !== 'ringing') return;
+							try {
+								const res = await ctrl.answerCall();
+								console.log('[bt-poll] Auto-answer result:', res.message);
+							} catch (e) {
+								console.log('[bt-poll] Auto-answer AT failed (likely Windows-managed HFP)');
+							}
+							pushCallState('answered');
+						}, delayMs);
+					}
 				} else if (btState === 'answered') {
 					console.log('[bt-poll] Call answered via BT');
+					if (autoAnswerTimer) { clearTimeout(autoAnswerTimer); autoAnswerTimer = null; }
 					pushCallState('answered');
 				} else if (btState === 'idle' && callState !== 'idle') {
 					console.log('[bt-poll] Call ended via BT');
+					if (autoAnswerTimer) { clearTimeout(autoAnswerTimer); autoAnswerTimer = null; }
 					callerId = '';
 					pushCallState('idle');
 				}

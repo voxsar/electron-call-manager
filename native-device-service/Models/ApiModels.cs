@@ -12,7 +12,9 @@ public record StatusResponse(
 	string Version,
 	string CallState = "idle",
 	string? CallerId = null,
-	bool HfpMonitoring = false
+	bool HfpMonitoring = false,
+	string? BtHfpOutputDeviceId = null,
+	string? BtHfpInputDeviceId = null
 );
 
 /// <summary>A single discovered device (Bluetooth, audio, serial, …).</summary>

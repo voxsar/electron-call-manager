@@ -39,7 +39,9 @@ public sealed class DeviceService(
 			Version: ServiceVersion,
 			CallState: telephony.CurrentState.ToString().ToLowerInvariant(),
 			CallerId: telephony.CurrentCallerId,
-			HfpMonitoring: telephony.IsMonitoring
+			HfpMonitoring: telephony.IsMonitoring,
+			BtHfpOutputDeviceId: audio.BtHfpOutputDeviceId,
+			BtHfpInputDeviceId: audio.BtHfpInputDeviceId
 		);
 	}
 

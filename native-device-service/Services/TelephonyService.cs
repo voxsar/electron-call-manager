@@ -45,23 +45,45 @@ public interface ITelephonyService
 public sealed class TelephonyService : ITelephonyService, IDisposable
 {
 	private readonly IBluetoothService _bluetooth;
+	private readonly IAudioService _audio;
 	private readonly ILogger<TelephonyService> _logger;
 	private readonly ILoggerFactory _loggerFactory;
 	private HfpSession? _session;
 
+	// Fallback call state detected via audio endpoint monitoring.
+	private CallState _audioDetectedState = CallState.Idle;
+
 	public TelephonyService(
 		IBluetoothService bluetooth,
+		IAudioService audio,
 		ILogger<TelephonyService> logger,
 		ILoggerFactory loggerFactory)
 	{
 		_bluetooth = bluetooth;
+		_audio = audio;
 		_logger = logger;
 		_loggerFactory = loggerFactory;
+
+		// Subscribe to BT HFP audio endpoint state changes.
+		_audio.BtHfpCallActiveChanged += OnBtHfpCallActiveChanged;
 	}
 
-	public CallState CurrentState => _session?.CurrentCallState ?? CallState.Idle;
+	public CallState CurrentState
+	{
+		get
+		{
+			// Prefer HFP session state when connected.
+			if (_session is { IsConnected: true })
+				return _session.CurrentCallState;
+			// Fall back to audio-detected state.
+			return _audioDetectedState;
+		}
+	}
+
 	public string? CurrentCallerId => _session?.CurrentCallerId;
-	public bool IsMonitoring => _session?.IsConnected ?? false;
+
+	public bool IsMonitoring =>
+		(_session?.IsConnected ?? false) || _audio.IsBtHfpCallActive;
 
 	// ── Monitoring ──────────────────────────────────────────────────────────
 
@@ -117,6 +139,9 @@ public sealed class TelephonyService : ITelephonyService, IDisposable
 	{
 		_logger.LogInformation("AnswerCall requested, device={DeviceId}", deviceId ?? "any");
 
+		// Update audio-detected state so we don't keep reporting Ringing.
+		_audioDetectedState = CallState.Answered;
+
 		// Use persistent session if available.
 		if (_session is { IsConnected: true })
 		{
@@ -124,8 +149,16 @@ public sealed class TelephonyService : ITelephonyService, IDisposable
 			return true;
 		}
 
-		// Fallback: open a short-lived RFCOMM connection.
-		return await SendAtFallbackAsync(deviceId, "ATA");
+		// Fallback: open a short-lived RFCOMM connection (best-effort).
+		var result = await SendAtFallbackAsync(deviceId, "ATA");
+		// Even if the AT command failed (Windows owns HFP), return true
+		// because the audio is already active via BT HFP.
+		if (!result && _audio.IsBtHfpCallActive)
+		{
+			_logger.LogInformation("AT fallback failed but BT HFP audio is active \u2013 treating as answered");
+			return true;
+		}
+		return result;
 	}
 
 	public async Task<bool> HangupCallAsync(string? deviceId)
@@ -143,6 +176,8 @@ public sealed class TelephonyService : ITelephonyService, IDisposable
 
 	// ── Fallback (short-lived connection) ───────────────────────────────────
 
+	// HFP AG (Audio Gateway) UUID – the phone advertises this role.
+	private static readonly Guid HfpAgServiceUuid = new("0000111f-0000-1000-8000-00805f9b34fb");
 	private static readonly Guid HfpServiceUuid = new("0000111e-0000-1000-8000-00805f9b34fb");
 
 	private async Task<bool> SendAtFallbackAsync(string? deviceId, string command)
@@ -155,8 +190,14 @@ public sealed class TelephonyService : ITelephonyService, IDisposable
 			return await Task.Run(() =>
 			{
 				using var client = new BluetoothClient();
-				client.Connect(address, HfpServiceUuid);
-				if (!client.Connected) return false;
+				// Try AG UUID first (phone role), then HFP unit UUID.
+				bool connected = false;
+				try { client.Connect(address, HfpAgServiceUuid); connected = client.Connected; } catch { }
+				if (!connected)
+				{
+					try { client.Connect(address, HfpServiceUuid); connected = client.Connected; } catch { }
+				}
+				if (!connected) return false;
 
 				using var stream = client.GetStream();
 				var data = System.Text.Encoding.ASCII.GetBytes(command + "\r");
@@ -191,6 +232,7 @@ public sealed class TelephonyService : ITelephonyService, IDisposable
 
 	public void Dispose()
 	{
+		_audio.BtHfpCallActiveChanged -= OnBtHfpCallActiveChanged;
 		_session?.Dispose();
 	}
 }
