@@ -168,6 +168,9 @@ wsBridge.on('control', (msg: unknown) => {
 // ── Stats timer ───────────────────────────────────────────────────────────────
 
 let statsTimer: ReturnType<typeof setInterval> | null = null;
+let btPollTimer: ReturnType<typeof setInterval> | null = null;
+let lastBtCallState = 'idle';
+let lastBtCallerId: string | null = null;
 
 function startStatsTimer(): void {
 	if (statsTimer) clearInterval(statsTimer);
@@ -182,6 +185,43 @@ function startStatsTimer(): void {
 		};
 		sendToRenderer(IPC.STATS, update);
 	}, 2000);
+}
+
+/** Poll the native service for Bluetooth call state changes. */
+function startBtCallPoller(): void {
+	if (btPollTimer) clearInterval(btPollTimer);
+	btPollTimer = setInterval(async () => {
+		try {
+			const ctrl = deviceManager.activeController;
+			if (ctrl.name !== 'NativeDeviceController' || !ctrl.getStatus) return;
+			const status = await ctrl.getStatus();
+			if (!status) return;
+
+			const btState = (status as import('./device/types').StatusResponse).callState ?? 'idle';
+			const btCaller = (status as import('./device/types').StatusResponse).callerId ?? null;
+
+			// Only push when something changed.
+			if (btState !== lastBtCallState || btCaller !== lastBtCallerId) {
+				lastBtCallState = btState;
+				lastBtCallerId = btCaller;
+
+				// Map native call state to our call state machine.
+				if (btState === 'ringing') {
+					console.log('[bt-poll] Incoming call detected via BT', btCaller);
+					pushCallState('ringing', btCaller ?? undefined);
+				} else if (btState === 'answered') {
+					console.log('[bt-poll] Call answered via BT');
+					pushCallState('answered');
+				} else if (btState === 'idle' && callState !== 'idle') {
+					console.log('[bt-poll] Call ended via BT');
+					callerId = '';
+					pushCallState('idle');
+				}
+			}
+		} catch {
+			// Native service may not be running — silently ignore.
+		}
+	}, 1500);
 }
 
 // ── IPC handlers ─────────────────────────────────────────────────────────────
@@ -309,6 +349,7 @@ app.whenReady().then(async () => {
 
 	createWindow();
 	startStatsTimer();
+	startBtCallPoller();
 
 	// Push initial port list as soon as renderer is ready.
 	win?.webContents.once('did-finish-load', async () => {
@@ -352,6 +393,7 @@ app.whenReady().then(async () => {
 app.on('before-quit', async (evt) => {
 	evt.preventDefault();
 	if (statsTimer) { clearInterval(statsTimer); statsTimer = null; }
+	if (btPollTimer) { clearInterval(btPollTimer); btPollTimer = null; }
 	await deviceManager.shutdown();
 	if (serial.isOpen()) await serial.close().catch(console.error);
 	wsBridge.disconnect();

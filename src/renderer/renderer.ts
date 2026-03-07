@@ -32,7 +32,7 @@ declare global {
 			getBtDevices: () => Promise<{ success: boolean; devices: BtDevice[]; error?: string }>;
 			btConnect: (deviceId: string) => Promise<{ success: boolean; message: string }>;
 			btDisconnect: (deviceId: string) => Promise<{ success: boolean; message: string }>;
-			getDeviceStatus: () => Promise<{ success: boolean; status: { running: boolean; devicesConnected: number; version: string } | null; error?: string }>;
+			getDeviceStatus: () => Promise<{ success: boolean; status: { running: boolean; devicesConnected: number; version: string; callState: string; callerId: string | null; hfpMonitoring: boolean } | null; error?: string }>;
 			onPortList: (cb: (ports: PortInfo[]) => void) => () => void;
 			onPortOpened: (cb: (path: string) => void) => () => void;
 			onPortClosed: (cb: () => void) => () => void;
@@ -501,8 +501,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 			const devices = result.devices as BtDevice[];
 			if (devices.length === 0) {
 				list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;text-align:center;padding:8px 0">No paired devices found</div>';
+				el('bt-audio-hint').style.display = 'none';
 				return;
 			}
+
+			// Show audio hint if any BT device is connected.
+			const anyConnected = devices.some(d => d.connected);
+			el('bt-audio-hint').style.display = anyConnected ? 'block' : 'none';
+
 			list.innerHTML = '';
 			for (const dev of devices) {
 				const row = document.createElement('div');
@@ -559,9 +565,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 	async function checkBtServiceStatus(): Promise<void> {
 		try {
-			const res = await api.getDeviceStatus() as { success: boolean; status: { running: boolean; devicesConnected: number; version: string } | null };
+			const res = await api.getDeviceStatus() as { success: boolean; status: { running: boolean; devicesConnected: number; version: string; callState: string; callerId: string | null; hfpMonitoring: boolean } | null };
 			if (res.success && res.status?.running) {
-				setStatus('bt-svc', true, `v${res.status.version} (${res.status.devicesConnected} connected)`);
+				const hfp = res.status.hfpMonitoring ? ', HFP active' : '';
+				setStatus('bt-svc', true, `v${res.status.version} (${res.status.devicesConnected} conn${hfp})`);
 			} else {
 				setStatus('bt-svc', false, 'offline');
 			}

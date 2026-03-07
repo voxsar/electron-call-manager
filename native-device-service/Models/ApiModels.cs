@@ -9,7 +9,10 @@ namespace NativeDeviceService.Models;
 public record StatusResponse(
     bool Running,
     int DevicesConnected,
-    string Version
+    string Version,
+    string CallState = "idle",
+    string? CallerId = null,
+    bool HfpMonitoring = false
 );
 
 /// <summary>A single discovered device (Bluetooth, audio, serial, …).</summary>

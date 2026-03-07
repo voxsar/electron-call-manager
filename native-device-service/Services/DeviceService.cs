@@ -36,7 +36,10 @@ public sealed class DeviceService(
         return new StatusResponse(
             Running: true,
             DevicesConnected: bluetooth.ConnectedCount,
-            Version: ServiceVersion
+            Version: ServiceVersion,
+            CallState: telephony.CurrentState.ToString().ToLowerInvariant(),
+            CallerId: telephony.CurrentCallerId,
+            HfpMonitoring: telephony.IsMonitoring
         );
     }
 
@@ -52,13 +55,21 @@ public sealed class DeviceService(
     public async Task<OperationResult> ConnectAsync(string deviceId)
     {
         bool ok = await bluetooth.ConnectAsync(deviceId);
-        return ok
-            ? new OperationResult(true,  $"Connected to device {deviceId}.", deviceId)
-            : new OperationResult(false, $"Device {deviceId} not found or connection failed.");
+        if (ok)
+        {
+            // Start HFP monitoring for call detection (best-effort).
+            bool hfp = await telephony.StartMonitoringAsync(deviceId);
+            var msg = hfp
+                ? $"Connected to device {deviceId} (HFP monitoring active)."
+                : $"Connected to device {deviceId} (HFP monitoring unavailable — Windows may manage it).";
+            return new OperationResult(true, msg, deviceId);
+        }
+        return new OperationResult(false, $"Device {deviceId} not found or connection failed.");
     }
 
     public async Task<OperationResult> DisconnectAsync(string deviceId)
     {
+        await telephony.StopMonitoringAsync();
         bool ok = await bluetooth.DisconnectAsync(deviceId);
         return ok
             ? new OperationResult(true,  $"Disconnected device {deviceId}.", deviceId)

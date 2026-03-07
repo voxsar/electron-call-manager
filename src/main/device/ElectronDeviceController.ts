@@ -20,6 +20,9 @@ export class ElectronDeviceController implements IDeviceController {
       running: true,
       devicesConnected: this.serial.isOpen() ? 1 : 0,
       version: 'electron-fallback',
+      callState: 'idle',
+      callerId: null,
+      hfpMonitoring: false,
     };
   }
 

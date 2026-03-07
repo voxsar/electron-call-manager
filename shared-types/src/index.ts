@@ -13,6 +13,12 @@ export interface StatusResponse {
   devicesConnected: number;
   /** Semantic version of the native service binary. */
   version: string;
+  /** Current telephony call state. */
+  callState: 'idle' | 'ringing' | 'answered' | 'ended';
+  /** Caller ID of the current/last call (null if unknown). */
+  callerId: string | null;
+  /** Whether HFP monitoring is active on a connected device. */
+  hfpMonitoring: boolean;
 }
 
 // ── Devices ─────────────────────────────────────────────────────────────────

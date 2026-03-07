@@ -30,4 +30,7 @@ export interface StatusResponse {
   running: boolean;
   devicesConnected: number;
   version: string;
+  callState: 'idle' | 'ringing' | 'answered' | 'ended';
+  callerId: string | null;
+  hfpMonitoring: boolean;
 }
