@@ -196,8 +196,7 @@ public sealed class BluetoothService : IBluetoothService, IDisposable
 			return await Task.Run(() =>
 			{
 				using var client = new BluetoothClient();
-				var ep = new BluetoothEndPoint(device.DeviceAddress, serviceUuid);
-				client.Connect(ep);
+				client.Connect(device.DeviceAddress, serviceUuid);
 				return client.Connected;
 			});
 		}

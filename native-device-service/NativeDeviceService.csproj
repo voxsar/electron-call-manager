@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <!-- 32feet.NET – cross-platform Bluetooth (Windows, Linux, macOS) -->
-    <PackageReference Include="InTheHand.Net.Bluetooth" Version="4.1.46" />
+    <PackageReference Include="InTheHand.Net.Bluetooth" Version="4.2.0" />
   </ItemGroup>
 
 </Project>
