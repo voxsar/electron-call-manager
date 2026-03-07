@@ -1,498 +1,748 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GSM Call Manager</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>GSM Call Manager</title>
+	<style>
+		*,
+		*::before,
+		*::after {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
 
-    :root {
-      --bg:        #1a1a2e;
-      --bg2:       #16213e;
-      --bg3:       #0f3460;
-      --accent:    #e94560;
-      --accent2:   #533483;
-      --green:     #00d084;
-      --yellow:    #f5a623;
-      --red:       #e94560;
-      --text:      #e0e0e0;
-      --text-dim:  #888;
-      --border:    #2a2a4a;
-      --radius:    6px;
-    }
+		:root {
+			--bg: #1a1a2e;
+			--bg2: #16213e;
+			--bg3: #0f3460;
+			--accent: #e94560;
+			--accent2: #533483;
+			--green: #00d084;
+			--yellow: #f5a623;
+			--red: #e94560;
+			--text: #e0e0e0;
+			--text-dim: #888;
+			--border: #2a2a4a;
+			--radius: 6px;
+		}
 
-    html, body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      font-size: 13px;
-      overflow: hidden;
-    }
+		html,
+		body {
+			height: 100%;
+			background: var(--bg);
+			color: var(--text);
+			font-family: 'Segoe UI', system-ui, sans-serif;
+			font-size: 13px;
+			overflow: hidden;
+		}
 
-    /* ── Layout ─────────────────────────────────────────────────── */
-    #app {
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-      height: 100vh;
-    }
+		/* ── Layout ─────────────────────────────────────────────────── */
+		#app {
+			display: grid;
+			grid-template-rows: auto 1fr auto;
+			height: 100vh;
+		}
 
-    /* ── Status bar ─────────────────────────────────────────────── */
-    #status-bar {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-      padding: 8px 16px;
-      background: var(--bg2);
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
+		/* ── Status bar ─────────────────────────────────────────────── */
+		#status-bar {
+			display: flex;
+			align-items: center;
+			gap: 24px;
+			padding: 8px 16px;
+			background: var(--bg2);
+			border-bottom: 1px solid var(--border);
+			flex-wrap: wrap;
+		}
 
-    .status-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-    }
+		.status-item {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 12px;
+		}
 
-    .status-label {
-      color: var(--text-dim);
-      text-transform: uppercase;
-      font-size: 10px;
-      letter-spacing: 0.5px;
-    }
+		.status-label {
+			color: var(--text-dim);
+			text-transform: uppercase;
+			font-size: 10px;
+			letter-spacing: 0.5px;
+		}
 
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .status-dot.connected    { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .status-dot.disconnected { background: #555; }
-    .status-dot.ringing      { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); animation: pulse 0.8s infinite; }
+		.status-dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			flex-shrink: 0;
+		}
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.4; }
-    }
+		.status-dot.connected {
+			background: var(--green);
+			box-shadow: 0 0 6px var(--green);
+		}
 
-    #app-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--accent);
-      margin-right: auto;
-      letter-spacing: 0.5px;
-    }
+		.status-dot.disconnected {
+			background: #555;
+		}
 
-    #caller-id-display {
-      color: var(--yellow);
-      font-weight: 600;
-      font-size: 13px;
-      min-width: 80px;
-    }
+		.status-dot.ringing {
+			background: var(--yellow);
+			box-shadow: 0 0 6px var(--yellow);
+			animation: pulse 0.8s infinite;
+		}
 
-    /* ── Main content ────────────────────────────────────────────── */
-    #main-content {
-      display: grid;
-      grid-template-columns: 340px 1fr;
-      overflow: hidden;
-    }
+		@keyframes pulse {
 
-    /* ── Left panel ──────────────────────────────────────────────── */
-    #left-panel {
-      background: var(--bg2);
-      border-right: 1px solid var(--border);
-      overflow-y: auto;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+			0%,
+			100% {
+				opacity: 1;
+			}
 
-    .section {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 10px 12px;
-    }
+			50% {
+				opacity: 0.4;
+			}
+		}
 
-    .section-title {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text-dim);
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+		#app-title {
+			font-size: 15px;
+			font-weight: 700;
+			color: var(--accent);
+			margin-right: auto;
+			letter-spacing: 0.5px;
+		}
 
-    .section-title::before {
-      content: '';
-      display: inline-block;
-      width: 3px;
-      height: 12px;
-      background: var(--accent2);
-      border-radius: 2px;
-    }
+		#caller-id-display {
+			color: var(--yellow);
+			font-weight: 600;
+			font-size: 13px;
+			min-width: 80px;
+		}
 
-    /* ── Form rows ───────────────────────────────────────────────── */
-    .form-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 6px;
-    }
+		/* ── Main content ────────────────────────────────────────────── */
+		#main-content {
+			display: grid;
+			grid-template-columns: 340px 1fr;
+			overflow: hidden;
+		}
 
-    .form-row:last-child { margin-bottom: 0; }
+		/* ── Left panel ──────────────────────────────────────────────── */
+		#left-panel {
+			background: var(--bg2);
+			border-right: 1px solid var(--border);
+			overflow-y: auto;
+			padding: 12px;
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+		}
 
-    .form-row label {
-      color: var(--text-dim);
-      min-width: 80px;
-      flex-shrink: 0;
-      font-size: 12px;
-    }
+		.section {
+			background: var(--bg);
+			border: 1px solid var(--border);
+			border-radius: var(--radius);
+			padding: 10px 12px;
+		}
 
-    input[type="text"],
-    input[type="number"],
-    select {
-      flex: 1;
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 4px 8px;
-      border-radius: var(--radius);
-      font-size: 12px;
-      outline: none;
-      transition: border-color 0.15s;
-    }
+		.section-title {
+			font-size: 11px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.8px;
+			color: var(--text-dim);
+			margin-bottom: 8px;
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
 
-    input[type="text"]:focus,
-    input[type="number"]:focus,
-    select:focus {
-      border-color: var(--accent2);
-    }
+		.section-title::before {
+			content: '';
+			display: inline-block;
+			width: 3px;
+			height: 12px;
+			background: var(--accent2);
+			border-radius: 2px;
+		}
 
-    input[type="checkbox"] {
-      accent-color: var(--accent);
-      width: 14px;
-      height: 14px;
-    }
+		/* ── Form rows ───────────────────────────────────────────────── */
+		.form-row {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			margin-bottom: 6px;
+		}
 
-    /* ── Buttons ─────────────────────────────────────────────────── */
-    .btn {
-      padding: 5px 12px;
-      border: none;
-      border-radius: var(--radius);
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-      transition: opacity 0.15s, transform 0.1s;
-      white-space: nowrap;
-    }
+		.form-row:last-child {
+			margin-bottom: 0;
+		}
 
-    .btn:hover  { opacity: 0.85; }
-    .btn:active { transform: scale(0.97); }
+		.form-row label {
+			color: var(--text-dim);
+			min-width: 80px;
+			flex-shrink: 0;
+			font-size: 12px;
+		}
 
-    .btn-primary   { background: var(--accent2); color: #fff; }
-    .btn-success   { background: var(--green);   color: #000; }
-    .btn-danger    { background: var(--red);      color: #fff; }
-    .btn-secondary { background: var(--bg3);      color: #fff; }
-    .btn-sm        { padding: 4px 8px; font-size: 11px; }
+		input[type="text"],
+		input[type="number"],
+		select {
+			flex: 1;
+			background: var(--bg2);
+			border: 1px solid var(--border);
+			color: var(--text);
+			padding: 4px 8px;
+			border-radius: var(--radius);
+			font-size: 12px;
+			outline: none;
+			transition: border-color 0.15s;
+		}
 
-    .btn-group {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
+		input[type="text"]:focus,
+		input[type="number"]:focus,
+		select:focus {
+			border-color: var(--accent2);
+		}
 
-    /* ── Call controls ────────────────────────────────────────────── */
-    #call-controls {
-      display: flex;
-      gap: 8px;
-    }
+		input[type="checkbox"] {
+			accent-color: var(--accent);
+			width: 14px;
+			height: 14px;
+		}
 
-    #answer-btn { background: var(--green);  color: #000; flex: 1; }
-    #hangup-btn { background: var(--red);    color: #fff; flex: 1; }
+		/* ── Buttons ─────────────────────────────────────────────────── */
+		.btn {
+			padding: 5px 12px;
+			border: none;
+			border-radius: var(--radius);
+			cursor: pointer;
+			font-size: 12px;
+			font-weight: 600;
+			transition: opacity 0.15s, transform 0.1s;
+			white-space: nowrap;
+		}
 
-    /* ── AT console ──────────────────────────────────────────────── */
-    .at-row {
-      display: flex;
-      gap: 6px;
-    }
+		.btn:hover {
+			opacity: 0.85;
+		}
 
-    .at-row input { flex: 1; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; }
+		.btn:active {
+			transform: scale(0.97);
+		}
 
-    /* ── Feedback warning ─────────────────────────────────────────── */
-    #feedback-warning {
-      display: none;
-      background: rgba(245,166,35,0.15);
-      border: 1px solid var(--yellow);
-      border-radius: var(--radius);
-      padding: 6px 10px;
-      color: var(--yellow);
-      font-size: 11px;
-      margin-top: 6px;
-    }
+		.btn-primary {
+			background: var(--accent2);
+			color: #fff;
+		}
 
-    /* ── Right panel (log) ───────────────────────────────────────── */
-    #right-panel {
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
+		.btn-success {
+			background: var(--green);
+			color: #000;
+		}
 
-    #log-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background: var(--bg2);
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
+		.btn-danger {
+			background: var(--red);
+			color: #fff;
+		}
 
-    .log-tab {
-      padding: 4px 10px;
-      background: transparent;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--text-dim);
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 600;
-      transition: background 0.15s, color 0.15s;
-    }
+		.btn-secondary {
+			background: var(--bg3);
+			color: #fff;
+		}
 
-    .log-tab:hover { background: var(--bg3); color: var(--text); }
-    .log-tab.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+		.btn-sm {
+			padding: 4px 8px;
+			font-size: 11px;
+		}
 
-    #log-clear-btn { margin-left: auto; }
+		.btn-group {
+			display: flex;
+			gap: 6px;
+			flex-wrap: wrap;
+		}
 
-    #log-output {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px 12px;
-      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-      font-size: 11.5px;
-      line-height: 1.6;
-      background: var(--bg);
-    }
+		/* ── Call controls ────────────────────────────────────────────── */
+		#call-controls {
+			display: flex;
+			gap: 8px;
+		}
 
-    .log-line { padding: 1px 0; }
-    .log-serial { color: #7ecfff; }
-    .log-ws     { color: #b09eff; }
-    .log-audio  { color: #a8ff8a; }
-    .log-info   { color: var(--text-dim); }
+		#answer-btn {
+			background: var(--green);
+			color: #000;
+			flex: 1;
+		}
 
-    /* ── Stats bar ───────────────────────────────────────────────── */
-    #stats-bar {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      padding: 5px 16px;
-      background: var(--bg2);
-      border-top: 1px solid var(--border);
-      font-size: 11px;
-      color: var(--text-dim);
-      flex-wrap: wrap;
-    }
+		#hangup-btn {
+			background: var(--red);
+			color: #fff;
+			flex: 1;
+		}
 
-    .stat-item { display: flex; gap: 5px; align-items: center; }
-    .stat-label { font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.4px; }
-    .stat-value { color: var(--text); font-family: 'Cascadia Code', monospace; }
+		/* ── AT console ──────────────────────────────────────────────── */
+		.at-row {
+			display: flex;
+			gap: 6px;
+		}
 
-    /* ── Scrollbar styling ───────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
-  </style>
+		.at-row input {
+			flex: 1;
+			font-family: 'Cascadia Code', 'Fira Code', monospace;
+			font-size: 12px;
+		}
+
+		/* ── Feedback warning ─────────────────────────────────────────── */
+		#feedback-warning {
+			display: none;
+			background: rgba(245, 166, 35, 0.15);
+			border: 1px solid var(--yellow);
+			border-radius: var(--radius);
+			padding: 6px 10px;
+			color: var(--yellow);
+			font-size: 11px;
+			margin-top: 6px;
+		}
+
+		/* ── Right panel (log) ───────────────────────────────────────── */
+		#right-panel {
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+		}
+
+		#log-toolbar {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			padding: 6px 12px;
+			background: var(--bg2);
+			border-bottom: 1px solid var(--border);
+			flex-wrap: wrap;
+		}
+
+		.log-tab {
+			padding: 4px 10px;
+			background: transparent;
+			border: 1px solid var(--border);
+			border-radius: var(--radius);
+			color: var(--text-dim);
+			cursor: pointer;
+			font-size: 11px;
+			font-weight: 600;
+			transition: background 0.15s, color 0.15s;
+		}
+
+		.log-tab:hover {
+			background: var(--bg3);
+			color: var(--text);
+		}
+
+		.log-tab.active {
+			background: var(--accent2);
+			color: #fff;
+			border-color: var(--accent2);
+		}
+
+		#log-clear-btn {
+			margin-left: auto;
+		}
+
+		#log-output {
+			flex: 1;
+			overflow-y: auto;
+			padding: 8px 12px;
+			font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+			font-size: 11.5px;
+			line-height: 1.6;
+			background: var(--bg);
+		}
+
+		.log-line {
+			padding: 1px 0;
+		}
+
+		.log-serial {
+			color: #7ecfff;
+		}
+
+		.log-ws {
+			color: #b09eff;
+		}
+
+		.log-audio {
+			color: #a8ff8a;
+		}
+
+		.log-info {
+			color: var(--text-dim);
+		}
+
+		/* ── Stats bar ───────────────────────────────────────────────── */
+		#stats-bar {
+			display: flex;
+			align-items: center;
+			gap: 20px;
+			padding: 5px 16px;
+			background: var(--bg2);
+			border-top: 1px solid var(--border);
+			font-size: 11px;
+			color: var(--text-dim);
+			flex-wrap: wrap;
+		}
+
+		.stat-item {
+			display: flex;
+			gap: 5px;
+			align-items: center;
+		}
+
+		.stat-label {
+			font-weight: 600;
+			text-transform: uppercase;
+			font-size: 10px;
+			letter-spacing: 0.4px;
+		}
+
+		.stat-value {
+			color: var(--text);
+			font-family: 'Cascadia Code', monospace;
+		}
+
+		/* ── Chat panel ───────────────────────────────────────────────── */
+		#chat-panel {
+			display: flex;
+			flex-direction: column;
+			border-top: 1px solid var(--border);
+			max-height: 40%;
+			min-height: 120px;
+		}
+
+		#chat-toolbar {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 6px 12px;
+			background: var(--bg2);
+			border-bottom: 1px solid var(--border);
+			font-size: 11px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: var(--text-dim);
+		}
+
+		#chat-toolbar .chat-title::before {
+			content: '';
+			display: inline-block;
+			width: 3px;
+			height: 12px;
+			background: var(--accent);
+			border-radius: 2px;
+			margin-right: 6px;
+		}
+
+		#chat-clear-btn {
+			margin-left: auto;
+		}
+
+		#chat-messages {
+			flex: 1;
+			overflow-y: auto;
+			padding: 8px 12px;
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+			background: var(--bg);
+		}
+
+		.chat-bubble {
+			max-width: 80%;
+			padding: 6px 10px;
+			border-radius: 8px;
+			font-size: 12px;
+			line-height: 1.5;
+			word-wrap: break-word;
+		}
+
+		.chat-bubble.user {
+			align-self: flex-end;
+			background: var(--accent2);
+			color: #fff;
+			border-bottom-right-radius: 2px;
+		}
+
+		.chat-bubble.agent {
+			align-self: flex-start;
+			background: var(--bg3);
+			color: var(--text);
+			border-bottom-left-radius: 2px;
+		}
+
+		.chat-bubble .chat-role {
+			font-size: 10px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.4px;
+			margin-bottom: 2px;
+			opacity: 0.7;
+		}
+
+		.chat-bubble .chat-time {
+			font-size: 9px;
+			opacity: 0.5;
+			margin-top: 2px;
+			text-align: right;
+		}
+
+		/* ── Scrollbar styling ───────────────────────────────────────── */
+		::-webkit-scrollbar {
+			width: 6px;
+			height: 6px;
+		}
+
+		::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		::-webkit-scrollbar-thumb {
+			background: var(--border);
+			border-radius: 3px;
+		}
+
+		::-webkit-scrollbar-thumb:hover {
+			background: var(--accent2);
+		}
+	</style>
 </head>
+
 <body>
-<div id="app">
+	<div id="app">
 
-  <!-- ── Status bar ────────────────────────────────────────────────────── -->
-  <header id="status-bar">
-    <span id="app-title">📡 GSM Call Manager</span>
+		<!-- ── Status bar ────────────────────────────────────────────────────── -->
+		<header id="status-bar">
+			<span id="app-title">📡 GSM Call Manager</span>
 
-    <div class="status-item">
-      <span class="status-label">Serial</span>
-      <span id="serial-dot" class="status-dot disconnected"></span>
-      <span id="serial-text">Not connected</span>
-    </div>
+			<div class="status-item">
+				<span class="status-label">Serial</span>
+				<span id="serial-dot" class="status-dot disconnected"></span>
+				<span id="serial-text">Not connected</span>
+			</div>
 
-    <div class="status-item">
-      <span class="status-label">WebSocket</span>
-      <span id="ws-dot" class="status-dot disconnected"></span>
-      <span id="ws-text">disconnected</span>
-    </div>
+			<div class="status-item">
+				<span class="status-label">WebSocket</span>
+				<span id="ws-dot" class="status-dot disconnected"></span>
+				<span id="ws-text">disconnected</span>
+			</div>
 
-    <div class="status-item">
-      <span class="status-label">Call</span>
-      <span id="call-dot" class="status-dot disconnected"></span>
-      <span id="call-text">idle</span>
-    </div>
+			<div class="status-item">
+				<span class="status-label">Call</span>
+				<span id="call-dot" class="status-dot disconnected"></span>
+				<span id="call-text">idle</span>
+			</div>
 
-    <div class="status-item">
-      <span class="status-label">Caller&nbsp;ID</span>
-      <span id="caller-id-display"></span>
-    </div>
-  </header>
+			<div class="status-item">
+				<span class="status-label">Caller&nbsp;ID</span>
+				<span id="caller-id-display"></span>
+			</div>
+		</header>
 
-  <!-- ── Main content ──────────────────────────────────────────────────── -->
-  <div id="main-content">
+		<!-- ── Main content ──────────────────────────────────────────────────── -->
+		<div id="main-content">
 
-    <!-- ── Left panel ──────────────────────────────────────────────────── -->
-    <aside id="left-panel">
+			<!-- ── Left panel ──────────────────────────────────────────────────── -->
+			<aside id="left-panel">
 
-      <!-- Serial port -->
-      <div class="section">
-        <div class="section-title">Serial Port</div>
-        <div class="form-row">
-          <label for="port-select">Port</label>
-          <select id="port-select">
-            <option value="">— select —</option>
-          </select>
-          <button id="port-refresh-btn" class="btn btn-secondary btn-sm" title="Refresh ports">↻</button>
-        </div>
-        <div class="form-row">
-          <label for="baud-input">Baud rate</label>
-          <input id="baud-input" type="number" value="115200" min="1200" max="921600" />
-        </div>
-        <div class="btn-group" style="margin-top:8px">
-          <button id="port-connect-btn" class="btn btn-primary" style="flex:1">Connect</button>
-        </div>
-      </div>
+				<!-- Serial port -->
+				<div class="section">
+					<div class="section-title">Serial Port</div>
+					<div class="form-row">
+						<label for="port-select">Port</label>
+						<select id="port-select">
+							<option value="">— select —</option>
+						</select>
+						<button id="port-refresh-btn" class="btn btn-secondary btn-sm" title="Refresh ports">↻</button>
+					</div>
+					<div class="form-row">
+						<label for="baud-input">Baud rate</label>
+						<input id="baud-input" type="number" value="115200" min="1200" max="921600" />
+					</div>
+					<div class="btn-group" style="margin-top:8px">
+						<button id="port-connect-btn" class="btn btn-primary" style="flex:1">Connect</button>
+					</div>
+				</div>
 
-      <!-- WebSocket -->
-      <div class="section">
-        <div class="section-title">WebSocket Bridge</div>
-        <div class="form-row">
-          <label for="ws-url-input">URL</label>
-          <input id="ws-url-input" type="text" value="ws://localhost:8080" placeholder="ws://host:port" />
-        </div>
-        <div class="btn-group" style="margin-top:8px">
-          <button id="ws-connect-btn" class="btn btn-primary" style="flex:1">Connect</button>
-        </div>
-      </div>
+				<!-- WebSocket -->
+				<div class="section">
+					<div class="section-title">WebSocket Bridge</div>
+					<div class="form-row">
+						<label for="ws-url-input">URL</label>
+						<input id="ws-url-input" type="text" value="ws://localhost:8080" placeholder="ws://host:port" />
+					</div>
+					<div class="btn-group" style="margin-top:8px">
+						<button id="ws-connect-btn" class="btn btn-primary" style="flex:1">Connect</button>
+					</div>
+				</div>
 
-      <!-- Audio -->
-      <div class="section">
-        <div class="section-title">Audio Devices</div>
-        <div class="form-row">
-          <label for="mic-select">Microphone</label>
-          <select id="mic-select">
-            <option value="default">Default</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label for="speaker-select">Speaker</label>
-          <select id="speaker-select">
-            <option value="default">Default</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label for="input-gain">In gain</label>
-          <input id="input-gain" type="range" min="0" max="3" step="0.05" value="1" style="flex:1" />
-        </div>
-        <div class="form-row">
-          <label for="output-gain">Out gain</label>
-          <input id="output-gain" type="range" min="0" max="3" step="0.05" value="1" style="flex:1" />
-        </div>
-        <div class="form-row">
-          <label for="sample-rate">Sample rate</label>
-          <select id="sample-rate">
-            <option value="16000" selected>16000 Hz</option>
-            <option value="8000">8000 Hz</option>
-          </select>
-        </div>
-        <div id="feedback-warning">⚠ Microphone and speaker are the same device — feedback risk!</div>
-      </div>
+				<!-- Audio -->
+				<div class="section">
+					<div class="section-title">Audio Devices</div>
+					<div class="form-row">
+						<label for="mic-select">Microphone</label>
+						<select id="mic-select">
+							<option value="default">Default</option>
+						</select>
+					</div>
+					<div class="form-row">
+						<label for="speaker-select">Speaker</label>
+						<select id="speaker-select">
+							<option value="default">Default</option>
+						</select>
+					</div>
+					<div class="form-row">
+						<label for="desktop-speaker-select">Desktop spkr</label>
+						<select id="desktop-speaker-select">
+							<option value="default">Default</option>
+						</select>
+					</div>
+					<div class="form-row">
+						<label for="input-gain">In gain</label>
+						<input id="input-gain" type="range" min="0" max="3" step="0.05" value="1" style="flex:1" />
+					</div>
+					<div class="form-row">
+						<label for="output-gain">Out gain</label>
+						<input id="output-gain" type="range" min="0" max="3" step="0.05" value="1" style="flex:1" />
+					</div>
+					<div class="form-row">
+						<label for="sample-rate">Sample rate</label>
+						<select id="sample-rate">
+							<option value="16000" selected>16000 Hz</option>
+							<option value="8000">8000 Hz</option>
+						</select>
+					</div>
+					<div class="form-row">
+						<label for="monitor-audio">Monitor mic</label>
+						<input id="monitor-audio" type="checkbox" />
+						<span style="color:var(--text-dim);font-size:11px">Hear yourself through speaker</span>
+					</div>
+					<div id="feedback-warning">⚠ Microphone and speaker are the same device — feedback risk!</div>
+				</div>
 
-      <!-- Call settings -->
-      <div class="section">
-        <div class="section-title">Call Settings</div>
-        <div class="form-row">
-          <label for="auto-answer">Auto-answer</label>
-          <input id="auto-answer" type="checkbox" />
-        </div>
-        <div class="form-row">
-          <label for="answer-rings">After rings</label>
-          <input id="answer-rings" type="number" value="2" min="1" max="9" style="width:60px;flex:none" />
-        </div>
-        <div class="form-row">
-          <label for="detect-clip">Caller ID</label>
-          <input id="detect-clip" type="checkbox" checked />
-        </div>
-        <div style="margin-top:10px">
-          <div id="call-controls">
-            <button id="answer-btn" class="btn btn-success">📞 Answer</button>
-            <button id="hangup-btn" class="btn btn-danger">📵 Hang Up</button>
-          </div>
-        </div>
-      </div>
+				<!-- Call settings -->
+				<div class="section">
+					<div class="section-title">Call Settings</div>
+					<div class="form-row">
+						<label for="auto-answer">Auto-answer</label>
+						<input id="auto-answer" type="checkbox" />
+					</div>
+					<div class="form-row">
+						<label for="answer-rings">After rings</label>
+						<input id="answer-rings" type="number" value="2" min="1" max="9" style="width:60px;flex:none" />
+					</div>
+					<div class="form-row">
+						<label for="detect-clip">Caller ID</label>
+						<input id="detect-clip" type="checkbox" checked />
+					</div>
+					<div style="margin-top:10px">
+						<div id="call-controls">
+							<button id="answer-btn" class="btn btn-success">📞 Answer</button>
+							<button id="hangup-btn" class="btn btn-danger">📵 Hang Up</button>
+						</div>
+					</div>
+				</div>
 
-      <!-- AT command console -->
-      <div class="section">
-        <div class="section-title">AT Commands</div>
-        <div class="at-row">
-          <input id="at-input" type="text" placeholder="AT+CGMI" spellcheck="false" autocomplete="off" />
-          <button id="send-at-btn" class="btn btn-secondary">Send</button>
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-          <button id="at-quick-at"   class="btn btn-secondary btn-sm" data-at="AT">AT</button>
-          <button id="at-quick-ati"  class="btn btn-secondary btn-sm" data-at="ATI">ATI</button>
-          <button id="at-quick-cgmi" class="btn btn-secondary btn-sm" data-at="AT+CGMI">CGMI</button>
-          <button id="at-quick-csq"  class="btn btn-secondary btn-sm" data-at="AT+CSQ">CSQ</button>
-          <button id="at-quick-creg" class="btn btn-secondary btn-sm" data-at="AT+CREG?">CREG</button>
-          <button id="at-quick-cops" class="btn btn-secondary btn-sm" data-at="AT+COPS?">COPS</button>
-        </div>
-      </div>
+				<!-- AT command console -->
+				<div class="section">
+					<div class="section-title">AT Commands</div>
+					<div class="at-row">
+						<input id="at-input" type="text" placeholder="AT+CGMI" spellcheck="false" autocomplete="off" />
+						<button id="send-at-btn" class="btn btn-secondary">Send</button>
+					</div>
+					<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+						<button id="at-quick-at" class="btn btn-secondary btn-sm" data-at="AT">AT</button>
+						<button id="at-quick-ati" class="btn btn-secondary btn-sm" data-at="ATI">ATI</button>
+						<button id="at-quick-cgmi" class="btn btn-secondary btn-sm" data-at="AT+CGMI">CGMI</button>
+						<button id="at-quick-csq" class="btn btn-secondary btn-sm" data-at="AT+CSQ">CSQ</button>
+						<button id="at-quick-creg" class="btn btn-secondary btn-sm" data-at="AT+CREG?">CREG</button>
+						<button id="at-quick-cops" class="btn btn-secondary btn-sm" data-at="AT+COPS?">COPS</button>
+					</div>
+				</div>
 
-    </aside>
+				<!-- ElevenLabs Agent -->
+				<div class="section">
+					<div class="section-title">ElevenLabs Agent</div>
+					<div class="form-row">
+						<label for="el-agent-id">Agent ID</label>
+						<input id="el-agent-id" type="text" value="agent_9201kj20p7psenytqjqcmfw698zb"
+							placeholder="agent_..." />
+					</div>
+					<div class="form-row">
+						<label for="auto-agent">Auto-agent</label>
+						<input id="auto-agent" type="checkbox" />
+						<span style="color:var(--text-dim);font-size:11px">Start/stop with call</span>
+					</div>
+					<div class="btn-group" style="margin-top:8px">
+						<button id="el-connect-btn" class="btn btn-primary" style="flex:1">Start Agent</button>
+						<button id="el-disconnect-btn" class="btn btn-danger" style="flex:1" disabled>Stop
+							Agent</button>
+					</div>
+					<div class="status-item" style="margin-top:6px">
+						<span class="status-label">Agent</span>
+						<span id="el-dot" class="status-dot disconnected"></span>
+						<span id="el-text">disconnected</span>
+					</div>
+				</div>
 
-    <!-- ── Right panel (log) ────────────────────────────────────────────── -->
-    <main id="right-panel">
-      <div id="log-toolbar">
-        <button class="log-tab active" data-filter="all">All</button>
-        <button class="log-tab" data-filter="serial">Serial</button>
-        <button class="log-tab" data-filter="ws">WebSocket</button>
-        <button class="log-tab" data-filter="audio">Audio</button>
-        <button id="log-clear-btn" class="btn btn-secondary btn-sm">Clear</button>
-      </div>
-      <div id="log-output"></div>
-    </main>
+			</aside>
 
-  </div>
+			<!-- ── Right panel (log) ────────────────────────────────────────────── -->
+			<main id="right-panel">
+				<div id="log-toolbar">
+					<button class="log-tab active" data-filter="all">All</button>
+					<button class="log-tab" data-filter="serial">Serial</button>
+					<button class="log-tab" data-filter="ws">WebSocket</button>
+					<button class="log-tab" data-filter="audio">Audio</button>
+					<button id="log-clear-btn" class="btn btn-secondary btn-sm">Clear</button>
+				</div>
+				<div id="log-output"></div>
 
-  <!-- ── Stats bar ─────────────────────────────────────────────────────── -->
-  <footer id="stats-bar">
-    <div class="stat-item">
-      <span class="stat-label">Sent</span>
-      <span id="stat-sent" class="stat-value">0 B</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-label">Received</span>
-      <span id="stat-received" class="stat-value">0 B</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-label">Pkts ↑</span>
-      <span id="stat-pkts-sent" class="stat-value">0</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-label">Pkts ↓</span>
-      <span id="stat-pkts-recv" class="stat-value">0</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-label">Latency</span>
-      <span id="stat-latency" class="stat-value">— ms</span>
-    </div>
-  </footer>
+				<!-- Chat panel -->
+				<div id="chat-panel">
+					<div id="chat-toolbar">
+						<span class="chat-title">Agent Conversation</span>
+						<button id="chat-clear-btn" class="btn btn-secondary btn-sm">Clear</button>
+					</div>
+					<div id="chat-messages"></div>
+				</div>
+			</main>
 
-</div>
+		</div>
+
+		<!-- ── Stats bar ─────────────────────────────────────────────────────── -->
+		<footer id="stats-bar">
+			<div class="stat-item">
+				<span class="stat-label">Sent</span>
+				<span id="stat-sent" class="stat-value">0 B</span>
+			</div>
+			<div class="stat-item">
+				<span class="stat-label">Received</span>
+				<span id="stat-received" class="stat-value">0 B</span>
+			</div>
+			<div class="stat-item">
+				<span class="stat-label">Pkts ↑</span>
+				<span id="stat-pkts-sent" class="stat-value">0</span>
+			</div>
+			<div class="stat-item">
+				<span class="stat-label">Pkts ↓</span>
+				<span id="stat-pkts-recv" class="stat-value">0</span>
+			</div>
+			<div class="stat-item">
+				<span class="stat-label">Latency</span>
+				<span id="stat-latency" class="stat-value">— ms</span>
+			</div>
+		</footer>
+
+	</div>
 </body>
+
 </html>
