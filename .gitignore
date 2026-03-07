@@ -5,3 +5,11 @@ out/
 package-lock.json
 *.log
 .DS_Store
+
+# Native Device Service – build artifacts
+native-device-service/bin/
+native-device-service/obj/
+
+# Shared-types – compiled output
+shared-types/dist/
+shared-types/node_modules/
