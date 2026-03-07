@@ -192,3 +192,5 @@ public sealed class TelephonyService : ITelephonyService, IDisposable
 	public void Dispose()
 	{
 		_session?.Dispose();
+	}
+}
